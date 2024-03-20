@@ -7,39 +7,40 @@ import (
 
 // 创建用户结构体
 type User struct {
-	Name string
-	Addr string
-	C    chan string  // 每个user都包含一个携程
-	conn net.Conn
-	server *Server  // 指定用户是属于哪个server的
+	Name   string
+	Addr   string
+	C      chan string // 每个user都包含一个携程
+	conn   net.Conn    // 每个用户维护一个连接池
+	server *Server     // 指定用户是属于哪个server的
 }
 
 // 创建一个用户的API
 func NewUser(conn net.Conn, server *Server) *User {
-	userAddr := conn.RemoteAddr().String()  // 返回的是远程连接的地址
+	userAddr := conn.RemoteAddr().String() // 返回的是远程连接的地址
 
 	user := &User{
-		Name : userAddr,
-		Addr : userAddr,
-		C: make(chan string),
-		conn : conn,
-		server : server,  // 当前user是属于哪个server的
+		Name:   userAddr,
+		Addr:   userAddr,
+		C:      make(chan string),
+		conn:   conn,
+		server: server, // 当前user是属于哪个server的
 	}
 
-	// 启动监听当前user channel消息的goroutine
+	// 只要当前User结构体里的消息队列C有消息，就用网络conn发出去
 	go user.ListenMessage()
 
 	return user
 }
 
 // 用户上线的业务
+// go语言中没有this关键字，这里是定义了this
 func (this *User) Online() {
-	// 用户上线，将用户加入到onlineMap中
+	// 用户上线，将用户加入到Service.OnlineMap中
 	this.server.mapLock.Lock()
 	this.server.OnlineMap[this.Name] = this
 	this.server.mapLock.Unlock()
 
-	// 广播用户上线消息
+	// 广播用户上线消息(发到service自己的消息队列message中)
 	this.server.BroadCast(this, "已上线")
 }
 
@@ -65,13 +66,13 @@ func (this *User) DoMessage(msg string) {
 		// 查询当前在线用户有哪些
 		this.server.mapLock.Lock()
 		for _, user := range this.server.OnlineMap {
-			OnlineMsg := "[" + user.Addr + "]" + user.Name + ":" +"在线...\n"
+			OnlineMsg := "[" + user.Addr + "]" + user.Name + ":" + "在线...\n"
 			this.SendMsg(OnlineMsg)
 		}
 		this.server.mapLock.Unlock()
-	} else if (len(msg) > 7 && msg[:7] == "rename|") {
+	} else if len(msg) > 7 && msg[:7] == "rename|" {
 		// 消息格式 "rename|张三" 更改用户姓名
-		newName := strings.Split(msg,"|")[1]
+		newName := strings.Split(msg, "|")[1]
 
 		// 判断name是否存在
 		_, ok := this.server.OnlineMap[newName]
@@ -103,8 +104,8 @@ func (this *User) DoMessage(msg string) {
 		}
 
 		//获取消息内容，通过对象的user发送消息
-		content := strings.Split(msg,"|")[2]
-		if content =="" {
+		content := strings.Split(msg, "|")[2]
+		if content == "" {
 			this.SendMsg("无消息记录，请重发\n")
 			return
 		}

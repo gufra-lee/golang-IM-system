@@ -1,31 +1,31 @@
 package main
 
 import (
+	"flag" // 用于解析命令行参数和设置
 	"fmt"
-	"net"
-	"flag"
 	"io"
+	"net"
 	"os"
 )
 
 type Client struct {
-	ServerIP	string
-	ServerPort	int
-	Name	string
-	conn	net.Conn
-	flag	int  //当前client的模式
+	ServerIP   string
+	ServerPort int
+	Name       string
+	conn       net.Conn
+	flag       int //当前client的模式
 }
 
 func NewClient(serverIP string, serverPort int) *Client {
 	// 创建客户端对象
 	client := &Client{
-		ServerIP : serverIP,
-		ServerPort : serverPort,
-		flag:	999,
+		ServerIP:   serverIP,
+		ServerPort: serverPort,
+		flag:       999,
 	}
 
 	// 链接server
-	conn, err := net.Dial("tcp",fmt.Sprintf("%s:%d",serverIP, serverPort))
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", serverIP, serverPort))
 	if err != nil {
 		fmt.Println("net.Dial error", err)
 		return nil
@@ -38,12 +38,12 @@ func NewClient(serverIP string, serverPort int) *Client {
 }
 
 // 处理server回应的消息，直接显示到标准输出即可
-func (client* Client) DealResponse() {
+func (client *Client) DealResponse() {
 	// 一旦有数据，就在stdout输出，永久阻塞监听
 	io.Copy(os.Stdout, client.conn)
 }
 
-func (client* Client) menu() bool {
+func (client *Client) menu() bool {
 	var flag int
 
 	fmt.Println("1.公聊模式")
@@ -63,7 +63,7 @@ func (client* Client) menu() bool {
 }
 
 // 查询在线用户
-func (client* Client) SelectUsers() {
+func (client *Client) SelectUsers() {
 	sendMsg := "who\n"
 	_, err := client.conn.Write([]byte(sendMsg))
 	if err != nil {
@@ -72,7 +72,7 @@ func (client* Client) SelectUsers() {
 	}
 }
 
-//私聊模式
+// 私聊模式
 func (client *Client) PrivateChat() {
 	var remoteName string
 	var chatMsg string
@@ -92,10 +92,10 @@ func (client *Client) PrivateChat() {
 				_, err := client.conn.Write([]byte(sendMsg))
 				if err != nil {
 					fmt.Println("conn Write err:", err)
-					break;
+					break
 				}
 			}
-			
+
 			chatMsg = ""
 			fmt.Println(">>>请输入消息内容，exit退出")
 			fmt.Scanln(&chatMsg)
@@ -109,7 +109,7 @@ func (client *Client) PrivateChat() {
 
 func (client *Client) PublicChat() {
 	// 提示用户输入消息
-	var chatMsg string;
+	var chatMsg string
 	fmt.Println(">>>>请输入聊天内容，exit退出")
 	fmt.Scanln(&chatMsg)
 
@@ -122,14 +122,14 @@ func (client *Client) PublicChat() {
 				break
 			}
 		}
-		
+
 		chatMsg = ""
 		fmt.Println(">>>>请输入聊天内容，exit退出")
 		fmt.Scanln(&chatMsg)
 	}
 }
 
-func (client* Client) UpdateName() bool{
+func (client *Client) UpdateName() bool {
 	fmt.Println("请输入用户名>>>>")
 	fmt.Scanln(&client.Name)
 
@@ -142,7 +142,7 @@ func (client* Client) UpdateName() bool{
 	return true
 }
 
-func (client* Client) Run() {
+func (client *Client) Run() {
 	for client.flag != 0 {
 		for client.menu() != true {
 		}
@@ -171,7 +171,7 @@ var serverPort int
 // 初始化，绑定地址
 func init() {
 	flag.StringVar(&serverIP, "ip", "127.0.0.1", "设置服务器IP地址（默认127.0.0.1）")
-	flag.IntVar(&serverPort,"Port", 8888, "设置服务器端口(默认是8888)")
+	flag.IntVar(&serverPort, "Port", 8888, "设置服务器端口(默认是8888)")
 }
 
 func main() {
